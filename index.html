@@ -68,7 +68,8 @@
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <!-- Main Container -->
-    <div id="app-container" class="bg-gray-800 rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden min-h-[700px] flex flex-col">
+    <!-- Changed max-w-4xl to w-[90%] to make the container occupy 90% of the screen width -->
+    <div id="app-container" class="bg-gray-800 rounded-2xl shadow-2xl w-[90%] max-w-none overflow-hidden min-h-[700px] flex flex-col">
 
         <!-- Login Page -->
         <section id="login-page" class="p-8 md:p-12 flex-grow flex items-center justify-center transition-opacity duration-500">
@@ -116,10 +117,10 @@
             </header>
 
             <div class="p-6 flex-grow overflow-y-auto project-list-container">
-                <!-- Change: Use flexbox with wrapping for a side-by-side layout -->
-                <div id="project-list" class="flex flex-wrap gap-6 justify-center">
+                <!-- Changed the following line to use Tailwind's grid system for better layout control -->
+                <div id="project-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     <!-- Project cards will be injected here by JavaScript -->
-                    <div id="loading-indicator" class="text-center text-gray-400 hidden">
+                    <div id="loading-indicator" class="text-center text-gray-400 hidden col-span-full">
                         <i class="fas fa-spinner fa-spin text-2xl"></i>
                         <p class="mt-2">Loading projects...</p>
                     </div>
@@ -232,7 +233,7 @@
             appId: "1:132678345961:web:b78ceb9e78f8c0d7557c78",
             measurementId: "G-87Y09B729P"
         };
-        const appId = "project-panel-541aa"; // Set appId to match your project's ID
+        const appId = firebaseConfig.projectId; // Set appId to match your project's ID
         const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
 
         const app = initializeApp(firebaseConfig);
@@ -267,7 +268,8 @@
         const projectProgressInput = document.getElementById('project-progress');
         const progressValueDisplay = document.getElementById('progress-value');
         const modalTitle = document.getElementById('modal-title');
-        const submitText = document.getElementById('submit-project-btn');
+        const submitBtn = document.getElementById('submit-project-btn');
+        const submitText = document.getElementById('submit-text'); // Renamed submitText to refer to the span element
         const loadingIndicator = document.getElementById('loading-indicator');
         const deleteModal = document.getElementById('delete-modal');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
@@ -286,9 +288,9 @@
             document.getElementById(pageId).classList.remove('hidden');
         };
 
-        const showModal = (title, submitBtnText) => {
+        const showModal = (title, submitBtnLabel) => {
             modalTitle.textContent = title;
-            submitText.textContent = submitBtnText;
+            submitText.textContent = submitBtnLabel; // Corrected usage of submitText
             projectModal.classList.remove('hidden');
         };
 
@@ -321,7 +323,8 @@
 
         const createProjectCard = (project) => {
             const card = document.createElement('div');
-            card.classList.add('bg-gray-700', 'p-6', 'rounded-xl', 'shadow-md', 'border', 'border-gray-600', 'flex-shrink-0', 'flex-grow', 'w-full', 'max-w-xs', 'md:max-w-none', 'md:w-[calc(50%-1.5rem)]', 'lg:w-[calc(33.33%-1.5rem)]');
+            // Replaced the flex classes with grid-column classes for consistent sizing.
+            card.classList.add('bg-gray-700', 'p-6', 'rounded-xl', 'shadow-md', 'border', 'border-gray-600');
             card.dataset.id = project.id;
             
             const statusColor = {
@@ -349,6 +352,10 @@
             const progress = project.progress !== undefined ? project.progress : 0;
             const notes = project.notes || 'No notes.';
 
+            // Get last updated date, default to creation date if not available
+            const lastUpdated = project.updatedAt ? project.updatedAt.toDate() : project.createdAt.toDate();
+            const formattedDate = lastUpdated.toLocaleDateString() + ' ' + lastUpdated.toLocaleTimeString();
+
             card.innerHTML = `
                 <div class="flex flex-col h-full">
                     <div class="flex-grow">
@@ -366,6 +373,7 @@
                             <span class="text-sm text-gray-400">${progress}%</span>
                         </div>
                     </div>
+                    <p class="text-xs text-gray-500 mt-2">Last Updated: ${formattedDate}</p>
                     <div class="flex items-center space-x-2 mt-4 self-end">
                         <button class="edit-btn bg-purple-500 text-white p-2 rounded-full hover:bg-purple-600 transition-colors duration-200" title="Edit">
                             <i class="fas fa-edit text-sm"></i>
@@ -434,13 +442,14 @@
                 if (isEditMode && currentProjectId) {
                     // Update existing project
                     const projectDocRef = doc(projectsColRef, currentProjectId);
-                    await updateDoc(projectDocRef, projectData);
+                    await updateDoc(projectDocRef, { ...projectData, updatedAt: Timestamp.now() }); // Update updatedAt
                 } else {
                     // Add new project
                     await addDoc(projectsColRef, {
                         ...projectData,
                         userId: userId,
-                        createdAt: Timestamp.now()
+                        createdAt: Timestamp.now(),
+                        updatedAt: Timestamp.now() // Add updatedAt on creation
                     });
                 }
                 hideModal();
@@ -599,18 +608,10 @@
         });
 
         // --- Initial Authentication ---
-        // Use the initial auth token if available, otherwise sign in anonymously
-        (async () => {
-            try {
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
-            } catch (error) {
-                console.error("Initial auth failed:", error);
-            }
-        })();
+        // This part has been changed to only handle the authentication state change listener
+        // and not attempt an initial anonymous sign-in, which was causing the error.
+        // The onAuthStateChanged listener will handle the initial state and show the login page
+        // if no user is signed in.
     </script>
 </body>
 </html>
